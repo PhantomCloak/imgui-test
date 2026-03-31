@@ -1,0 +1,52 @@
+name: Web
+
+on:
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: submodules
+        run: |
+          git submodule update --init --recursive vendor/imgui
+          git submodule update --init --recursive vendor/stb
+      - name: emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.10
+      - name: cmake configure
+        run: |
+          export EMSCRIPTEN=$EMSDK/upstream/emscripten
+          cmake -G Ninja -B build -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
+      - name: cmake build
+        run: cmake --build build --parallel
+      - name: copy files
+        run: |
+          mkdir -p deploy
+          cp build/emscripten-debug/bin/index.js deploy/
+          cp build/emscripten-debug/bin/index.data deploy/
+          cp build/emscripten-debug/bin/index.wasm deploy/
+          cp -r Resources deploy/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: deploy
+          retention-days: 1
+      - id: deployment
+        uses: actions/deploy-pages@v4
