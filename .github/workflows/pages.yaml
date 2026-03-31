@@ -39,6 +39,7 @@ jobs:
       - name: copy files
         run: |
           mkdir -p deploy
+          cp build/index.html deploy/
           cp build/index.js deploy/
           cp build/index.data deploy/
           cp build/index.wasm deploy/
